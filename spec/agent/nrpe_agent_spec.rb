@@ -20,6 +20,25 @@ describe "repository agent" do
     before :each do
       config.stubs(:pluginconf).returns(pluginconf)
       MCollective::Config.stubs(:instance).returns(config)
+      @agent.stubs(:run).returns(0)
+    end
+
+    it "can update things" do
+      reply = @agent.call(:update, :repository => "examplerepos")
+      reply[:statuscode].should == 0
+      reply[:statusmsg].should == "OK"
+      reply[:data][:revision].should == "fnar"
+    end
+
+    it "conf_for_repos method returns nil if not found" do
+      @agent.conf_for_repos('does_not_exist').should == nil
+    end
+
+    it "conf_for_repos method strips config as expected" do
+      c = @agent.conf_for_repos('examplerepos')
+      c["directory"].should == "/tmp/git_checkouts/foo"
+      c["from"].should == "git://github.com/someone/foo"
+      c["type"].should == "git"
     end
 
     it "pluginconf method returns stripped plugin conf" do
