@@ -14,32 +14,42 @@ module MCollective
       end
 
       def update_repos(repos_name)
-        conf = conf_for_repos repos_name
+        repos = conf_for_repos repos_name
         require 'pp'
-        pp conf
-        conf[:name] = repos_name
-        conf[:type] = 'auto' unless conf[:type]
+        pp repos 
+        repos[:name] = repos_name
+        repos[:type] = 'auto' unless repos[:type]
 
-        if 'auto' == conf[:type]
+        if 'auto' == repos[:type]
           raise("auto type not supported yet")
         end
 
-        case conf[:type]
-        when 'git'
-        when 'svn'
-            
-        else
-          raise("The '#{conf[:type]}' type is not known / supported")
+        Dir.chdir(repos[:directory]) do
+          case repos[:type]
+          when 'git'
+            update_git repos
+          when 'svn'
+            update_svn repos
+          else
+            raise("The '#{repos[:type]}' type is not known / supported")
+          end
         end
+      end
+
+      def update_git(repos)
+        run 'git fetch origin'
+        run 'git reset --hard master'
+      end
+
+      def update_svn(repos)
+        run 'svn revert -r .'
+        run 'svn up'
       end
 
       def run(cmd)
         puts cmd
         0
       end
-#        if config.pluginconf["nrpe.conf_file"]
-#          files << "#{fdir}/#{config.pluginconf['nrpe.conf_file']}"
-#        end
 
       def conf_for_repos(repo)
         conf = {}
@@ -49,14 +59,18 @@ module MCollective
           end
         end
         return nil unless conf.keys.count > 0
+
+        if !conf[:directory]
+          raise("Configureation for '#{repo}' does not have a .directory config key")
+        end
         conf
       end
 
       def pluginconf
         conf = {}
         Config.instance.pluginconf.each do |k,v|
-         if k =~ /^plugin\.repository\./
-            trim_k = k.gsub /^plugin\.repository\./, ''
+         if k =~ /^repository\./
+            trim_k = k.gsub /^repository\./, ''
             conf[trim_k] = v
           end
         end
